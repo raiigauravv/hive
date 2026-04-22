@@ -1,0 +1,296 @@
+{
+  "agent": {
+    "id": "ml_experiment_monitor",
+    "name": "ML Experiment Monitor",
+    "version": "1.0.0",
+    "description": "Monitor W&B ML experiments, compare runs, detect regressions, and surface insights"
+  },
+  "graph": {
+    "id": "ml-experiment-monitor-graph",
+    "goal_id": "ml-experiment-monitoring",
+    "version": "1.0.0",
+    "entry_node": "intake",
+    "entry_points": {
+      "start": "intake"
+    },
+    "pause_nodes": [],
+    "terminal_nodes": [],
+    "conversation_mode": "continuous",
+    "identity_prompt": "You are an ML experiment monitoring agent. You fetch real data from W&B, analyze metric trends and regressions rigorously, and deliver actionable insights. You never fabricate data — every insight must trace back to actual W&B API results.",
+    "nodes": [
+      {
+        "id": "intake",
+        "name": "Monitoring Intake",
+        "description": "Gather W&B entity, project name, and monitoring goals from the user",
+        "node_type": "event_loop",
+        "input_keys": [
+          "user_request"
+        ],
+        "output_keys": [
+          "monitoring_brief"
+        ],
+        "nullable_output_keys": [],
+        "input_schema": {},
+        "output_schema": {},
+        "success_criteria": "The monitoring brief contains the W&B entity name, project name, and a clear description of what to monitor.",
+        "system_prompt": "You are an ML experiment monitoring intake specialist. Gather the W&B entity name, project name, and monitoring goals from the user. Then call set_output(\"monitoring_brief\", \"...\") when confirmed.",
+        "tools": [],
+        "model": null,
+        "function": null,
+        "routes": {},
+        "max_retries": 3,
+        "retry_on": [],
+        "max_node_visits": 0,
+        "output_model": null,
+        "max_validation_retries": 2,
+        "client_facing": true
+      },
+      {
+        "id": "fetch",
+        "name": "Data Fetch",
+        "description": "Fetch runs, metrics, and artifacts from W&B based on the monitoring brief",
+        "node_type": "event_loop",
+        "input_keys": [
+          "monitoring_brief"
+        ],
+        "output_keys": [
+          "runs_data",
+          "metrics_data",
+          "artifacts_data"
+        ],
+        "nullable_output_keys": [],
+        "input_schema": {},
+        "output_schema": {},
+        "success_criteria": "Runs, metrics, and artifacts have been fetched and saved to files.",
+        "system_prompt": "Use W&B tools to fetch experiment data. Save results with save_data/append_data. Call set_output for each key separately.",
+        "tools": [
+          "wandb_list_projects",
+          "wandb_list_runs",
+          "wandb_get_run",
+          "wandb_get_run_metrics",
+          "wandb_list_artifacts",
+          "wandb_get_summary",
+          "save_data",
+          "append_data"
+        ],
+        "model": null,
+        "function": null,
+        "routes": {},
+        "max_retries": 3,
+        "retry_on": [],
+        "max_node_visits": 0,
+        "output_model": null,
+        "max_validation_retries": 2,
+        "client_facing": false
+      },
+      {
+        "id": "analysis",
+        "name": "Experiment Analysis",
+        "description": "Analyze fetched W&B data, detect regressions, and surface key insights",
+        "node_type": "event_loop",
+        "input_keys": [
+          "runs_data",
+          "metrics_data",
+          "artifacts_data",
+          "monitoring_brief"
+        ],
+        "output_keys": [
+          "insights",
+          "regressions",
+          "recommendations"
+        ],
+        "nullable_output_keys": [],
+        "input_schema": {},
+        "output_schema": {},
+        "success_criteria": "Insights, regressions, and recommendations have all been derived from the fetched data.",
+        "system_prompt": "Load data files, compare runs, detect metric regressions, identify best run, surface insights. Call set_output for each key separately.",
+        "tools": [
+          "load_data",
+          "list_data_files",
+          "save_data",
+          "append_data"
+        ],
+        "model": null,
+        "function": null,
+        "routes": {},
+        "max_retries": 3,
+        "retry_on": [],
+        "max_node_visits": 0,
+        "output_model": null,
+        "max_validation_retries": 2,
+        "client_facing": false
+      },
+      {
+        "id": "report",
+        "name": "Report & Deliver",
+        "description": "Write an HTML experiment report and deliver it to the user",
+        "node_type": "event_loop",
+        "input_keys": [
+          "insights",
+          "regressions",
+          "recommendations",
+          "monitoring_brief"
+        ],
+        "output_keys": [
+          "delivery_status",
+          "next_action"
+        ],
+        "nullable_output_keys": [],
+        "input_schema": {},
+        "output_schema": {},
+        "success_criteria": "An HTML report has been saved and served to the user. The user has indicated their next action.",
+        "system_prompt": "Write a multi-section HTML report using append_data, serve it with serve_file_to_user, then ask the user what to do next. Call set_output for delivery_status and next_action.",
+        "tools": [
+          "save_data",
+          "append_data",
+          "serve_file_to_user",
+          "load_data",
+          "list_data_files"
+        ],
+        "model": null,
+        "function": null,
+        "routes": {},
+        "max_retries": 3,
+        "retry_on": [],
+        "max_node_visits": 0,
+        "output_model": null,
+        "max_validation_retries": 2,
+        "client_facing": true
+      }
+    ],
+    "edges": [
+      {
+        "id": "intake-to-fetch",
+        "source": "intake",
+        "target": "fetch",
+        "condition": "on_success",
+        "condition_expr": null,
+        "priority": 1,
+        "input_mapping": {}
+      },
+      {
+        "id": "fetch-to-analysis",
+        "source": "fetch",
+        "target": "analysis",
+        "condition": "on_success",
+        "condition_expr": null,
+        "priority": 1,
+        "input_mapping": {}
+      },
+      {
+        "id": "analysis-to-report",
+        "source": "analysis",
+        "target": "report",
+        "condition": "on_success",
+        "condition_expr": null,
+        "priority": 1,
+        "input_mapping": {}
+      },
+      {
+        "id": "report-to-intake",
+        "source": "report",
+        "target": "intake",
+        "condition": "conditional",
+        "condition_expr": "str(next_action).lower() == 'new_project'",
+        "priority": 1,
+        "input_mapping": {}
+      },
+      {
+        "id": "report-to-fetch",
+        "source": "report",
+        "target": "fetch",
+        "condition": "conditional",
+        "condition_expr": "str(next_action).lower() == 'dig_deeper'",
+        "priority": 2,
+        "input_mapping": {}
+      }
+    ],
+    "max_steps": 100,
+    "max_retries_per_node": 3,
+    "description": "Monitor W&B ML experiments, compare runs, detect regressions, and surface insights",
+    "created_at": "2026-04-22T00:00:00.000000"
+  },
+  "goal": {
+    "id": "ml-experiment-monitoring",
+    "name": "ML Experiment Monitor",
+    "description": "Monitor W&B ML experiments, compare runs, detect metric regressions, and surface actionable insights.",
+    "status": "draft",
+    "success_criteria": [
+      {
+        "id": "runs-fetched",
+        "description": "Successfully fetched runs from W&B",
+        "metric": "runs_count",
+        "target": ">=1",
+        "weight": 0.25,
+        "met": false
+      },
+      {
+        "id": "metrics-analyzed",
+        "description": "Metrics analyzed for trends and regressions",
+        "metric": "metrics_analyzed",
+        "target": "true",
+        "weight": 0.25,
+        "met": false
+      },
+      {
+        "id": "insights-generated",
+        "description": "Actionable insights generated from experiment data",
+        "metric": "insights_count",
+        "target": ">=1",
+        "weight": 0.25,
+        "met": false
+      },
+      {
+        "id": "report-delivered",
+        "description": "HTML report delivered to user",
+        "metric": "report_delivered",
+        "target": "true",
+        "weight": 0.25,
+        "met": false
+      }
+    ],
+    "constraints": [
+      {
+        "id": "real-data-only",
+        "description": "Only surface insights from actual W&B API data",
+        "constraint_type": "quality",
+        "category": "accuracy",
+        "check": ""
+      },
+      {
+        "id": "regression-detection",
+        "description": "Always flag metric regressions explicitly",
+        "constraint_type": "functional",
+        "category": "safety",
+        "check": ""
+      }
+    ],
+    "context": {},
+    "required_capabilities": [],
+    "input_schema": {},
+    "output_schema": {},
+    "version": "1.0.0",
+    "parent_version": null,
+    "evolution_reason": null,
+    "created_at": "2026-04-22 00:00:00.000000",
+    "updated_at": "2026-04-22 00:00:00.000000"
+  },
+  "required_tools": [
+    "wandb_list_projects",
+    "wandb_list_runs",
+    "wandb_get_run",
+    "wandb_get_run_metrics",
+    "wandb_list_artifacts",
+    "wandb_get_summary",
+    "save_data",
+    "append_data",
+    "load_data",
+    "list_data_files",
+    "serve_file_to_user"
+  ],
+  "metadata": {
+    "created_at": "2026-04-22T00:00:00.000000",
+    "node_count": 4,
+    "edge_count": 5
+  }
+}
